@@ -206,8 +206,13 @@ func serve(logger log.Logger, addr string, writers []writer, readers []reader) e
 		resp, err = reader.Read(&req)
 		if err != nil {
 			level.Warn(logger).Log("msg", "Error executing query", "query", req, "storage", reader.Name(), "err", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			labelsToSeries := map[string]*prompb.TimeSeries{}
+			resp := &prompb.ReadResponse{
+				Results: []*prompb.QueryResult{
+					{Timeseries: make([]*prompb.TimeSeries, 0, len(labelsToSeries))},
+				},
+			}
+			level.Warn(logger).Log("msg", "Error empty response", "resp", resp)
 		}
 		level.Info(logger).Log("msg", "Client read done")
 
@@ -260,5 +265,5 @@ func sendSamples(logger log.Logger, w writer, samples model.Samples) {
 	}
 	sentSamples.WithLabelValues(w.Name()).Add(float64(len(samples)))
 	sentBatchDuration.WithLabelValues(w.Name()).Observe(duration)
-	logger.Log("msg", fmt.Sprintf("Write %v samples, write=%v", len(samples), w.Name()))
+	logger.Log("msg", fmt.Sprintf("Write %v samples, write=%v, duration=%v", len(samples), w.Name(), duration))
 }

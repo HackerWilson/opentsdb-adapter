@@ -43,9 +43,5 @@
   name = "github.com/prometheus/common"
 
 [[constraint]]
-  name = "github.com/prometheus/prometheus"
-  version = "2.0.0"
-
-[[constraint]]
   branch = "master"
   name = "golang.org/x/net"

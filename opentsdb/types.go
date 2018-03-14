@@ -16,9 +16,10 @@ type otdbQueryRes struct {
 type otdbDPs map[int64]float64
 
 type otdbQueryReq struct {
-	Start   int64       `json:"start"`
-	End     int64       `json:"end"`
-	Queries []otdbQuery `json:"queries"`
+	Start        int64       `json:"start"`
+	End          int64       `json:"end"`
+	Queries      []otdbQuery `json:"queries"`
+	MsResolution bool        `json:"msResolution"`
 }
 
 type otdbQuery struct {

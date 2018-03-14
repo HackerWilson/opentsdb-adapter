@@ -28,8 +28,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kr/pretty"
-
 	"github.com/go-kit/kit/log/level"
 
 	"github.com/caitong93/opentsdb-adapter/prompb"
@@ -111,7 +109,7 @@ func (c *Client) Write(samples model.Samples) error {
 		metric := TagValue(s.Metric[model.MetricNameLabel])
 		reqs = append(reqs, StoreSamplesRequest{
 			Metric:    metric,
-			Timestamp: s.Timestamp.Unix(),
+			Timestamp: s.Timestamp.UnixNano() / 1000000,
 			Value:     v,
 			Tags:      tagsFromMetric(s.Metric),
 		})
@@ -166,7 +164,6 @@ func (c *Client) Write(samples model.Samples) error {
 }
 
 func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
-	pretty.Println(req)
 	queryReqs := make([]*otdbQueryReq, 0, len(req.Queries))
 	smatchers := make(map[*otdbQueryReq]seriesMatcher)
 	for _, q := range req.Queries {
@@ -182,6 +179,10 @@ func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
 	defer cancel()
 	errCh := make(chan error, 1)
 	defer close(errCh)
+
+	u, _ := url.Parse(c.url)
+	u.Path = queryEndpoint
+
 	var l sync.Mutex
 	labelsToSeries := map[string]*prompb.TimeSeries{}
 	for i := range queryReqs {
@@ -199,7 +200,7 @@ func (c *Client) Read(req *prompb.ReadRequest) (*prompb.ReadResponse, error) {
 			}
 			fmt.Println(string(rawBytes))
 
-			resp, err := ctxhttp.Post(ctx, c.client, c.url+queryEndpoint, contentTypeJSON, bytes.NewBuffer(rawBytes))
+			resp, err := ctxhttp.Post(ctx, c.client, u.String(), contentTypeJSON, bytes.NewBuffer(rawBytes))
 			if err != nil {
 				level.Warn(c.logger).Log("falied to send request to opentsdb")
 				errCh <- err
@@ -352,8 +353,9 @@ func mergeSamples(a, b []*prompb.Sample) []*prompb.Sample {
 
 func (c *Client) buildQueryReq(q *prompb.Query) (*otdbQueryReq, seriesMatcher, error) {
 	req := otdbQueryReq{
-		Start: q.GetStartTimestampMs() / 1000,
-		End:   q.GetEndTimestampMs() / 1000,
+		Start:        q.GetStartTimestampMs() / 1000,
+		End:          q.GetEndTimestampMs() / 1000,
+		MsResolution: true,
 	}
 
 	qr := otdbQuery{
